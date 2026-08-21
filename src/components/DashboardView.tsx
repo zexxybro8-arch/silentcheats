@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, FC } from 'react';
 import { 
   Shield, 
   ShieldCheck, 
@@ -25,7 +25,7 @@ interface DashboardViewProps {
 
 type TabType = 'features' | 'esp' | 'config' | 'account';
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) => {
+export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<TabType>('features');
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedMode, setSelectedMode] = useState('Stealth Mode (Recommended)');
@@ -77,13 +77,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
       <div className="fixed bottom-5 right-5 z-50 animate-bounce-subtle">
         <button
           onClick={() => setIsMinimized(false)}
-          className="group flex items-center gap-2.5 px-3.5 py-2 rounded-full glass-panel cyber-card-border cyber-glow-purple bg-[#0d061c]/95 text-white hover:border-purple-400 transition-all duration-300 shadow-2xl"
+          className="group flex items-center gap-2.5 px-3.5 py-2 rounded-full glass-panel cyber-card-border cyber-glow-purple bg-[#0d061c]/95 text-white hover:border-purple-400 transition-all duration-300 shadow-2xl cursor-pointer"
         >
-          <div className="w-7 h-7 rounded-full bg-purple-950/80 border border-purple-400/50 flex items-center justify-center overflow-hidden p-0.5 shadow-[0_0_8px_#a855f7]">
+          <div className="w-7 h-7 rounded-full bg-[#0c051a] border border-purple-400/50 flex items-center justify-center overflow-hidden p-0.5 shadow-[0_0_8px_#a855f7]">
             <img
               src="https://i.ibb.co/LXMBFV36/file-00000000b7fc8211bcf2c107760ddfb3.png"
               alt="Silent Cheats Logo"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover rounded-full"
             />
           </div>
           <div className="text-left pr-1">
@@ -112,7 +112,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
             <img
               src="https://i.ibb.co/LXMBFV36/file-00000000b7fc8211bcf2c107760ddfb3.png"
               alt="Silent Cheats"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover rounded-full"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
 
           <button
             onClick={onLogout}
-            className="p-1.5 rounded-lg bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/20 text-purple-300 hover:text-white transition-all text-[11px] font-tech font-bold tracking-wider uppercase flex items-center gap-1"
+            className="p-1.5 rounded-lg bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/20 text-purple-300 hover:text-white transition-all text-[11px] font-tech font-bold tracking-wider uppercase flex items-center gap-1 cursor-pointer"
             title="Disconnect & Return to Login"
           >
             <LogOut className="w-3 h-3 text-purple-400" />
@@ -145,7 +145,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
         </div>
       </header>
 
-      {/* 2. STATUS BAR (Super Slim) */}
+      {/* 2. STATUS BAR */}
       <div className="rounded-lg glass-input border border-purple-500/20 px-3 py-1.5 mb-2 flex items-center justify-between text-[11px] font-tech font-bold tracking-wider">
         <div className="flex items-center gap-1.5 text-purple-100">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
@@ -158,7 +158,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
         </div>
       </div>
 
-      {/* 3. NAVIGATION TABS (Compact) */}
+      {/* 3. NAVIGATION TABS */}
       <div className="rounded-lg glass-panel cyber-card-border p-1 mb-2 grid grid-cols-4 gap-1">
         {(['features', 'esp', 'config', 'account'] as TabType[]).map((tab) => {
           const isActive = activeTab === tab;
@@ -166,7 +166,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`relative py-1.5 rounded-md font-tech font-bold text-[11px] sm:text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-1 ${
+              className={`relative py-1.5 rounded-md font-tech font-bold text-[11px] sm:text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer ${
                 isActive
                   ? 'text-white bg-purple-900/40 shadow-[0_0_10px_rgba(168,85,247,0.25)]'
                   : 'text-purple-300/60 hover:text-purple-200 hover:bg-purple-950/30'
@@ -186,7 +186,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
         })}
       </div>
 
-      {/* 4. MAIN FUNCTION PANEL: SAFE MENU (Tight, 30% Shorter, No Description Text) */}
+      {/* 4. MAIN FUNCTION PANEL: SAFE MENU */}
       <div className="rounded-xl glass-panel cyber-card-border cyber-glow-purple p-3 sm:p-4 shadow-xl backdrop-blur-2xl transition-all">
         
         {/* Panel Header */}
@@ -262,7 +262,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
                     <button
                       type="button"
                       onClick={() => setSilentTarget('BODY')}
-                      className={`flex-1 py-1 px-2 rounded-md text-[11px] font-tech font-bold tracking-wider transition-all duration-200 uppercase ${
+                      className={`flex-1 py-1 px-2 rounded-md text-[11px] font-tech font-bold tracking-wider transition-all duration-200 uppercase cursor-pointer ${
                         silentTarget === 'BODY'
                           ? 'bg-gradient-to-r from-purple-600 to-violet-600 text-white shadow-[0_0_8px_rgba(168,85,247,0.5)] border border-purple-400/40'
                           : 'text-purple-300/60 hover:text-purple-100'
@@ -273,7 +273,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
                     <button
                       type="button"
                       onClick={() => setSilentTarget('HEAD')}
-                      className={`flex-1 py-1 px-2 rounded-md text-[11px] font-tech font-bold tracking-wider transition-all duration-200 uppercase ${
+                      className={`flex-1 py-1 px-2 rounded-md text-[11px] font-tech font-bold tracking-wider transition-all duration-200 uppercase cursor-pointer ${
                         silentTarget === 'HEAD'
                           ? 'bg-gradient-to-r from-purple-600 to-violet-600 text-white shadow-[0_0_8px_rgba(168,85,247,0.5)] border border-purple-400/40'
                           : 'text-purple-300/60 hover:text-purple-100'
@@ -366,7 +366,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
           </div>
         )}
 
-        {/* TAB 2: ESP (Clean & Compact) */}
+        {/* TAB 2: ESP */}
         {activeTab === 'esp' && (
           <div className="space-y-2">
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
@@ -421,7 +421,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
           </div>
         )}
 
-        {/* TAB 3: CONFIG (Clean & Compact) */}
+        {/* TAB 3: CONFIG */}
         {activeTab === 'config' && (
           <div className="space-y-2.5">
             <div className="px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 space-y-1">
@@ -472,7 +472,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
           </div>
         )}
 
-        {/* TAB 4: ACCOUNT (Clean & Compact) */}
+        {/* TAB 4: ACCOUNT */}
         {activeTab === 'account' && (
           <div className="space-y-2">
             <div className="p-3 rounded-lg bg-purple-950/30 border border-purple-500/20 space-y-2">
@@ -498,7 +498,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
           </div>
         )}
 
-        {/* 5. CONTROL AREA (Selected Mode + HIDE / CLOSE Buttons) */}
+        {/* 5. CONTROL AREA */}
         <div className="mt-3 pt-2.5 border-t border-purple-500/15 space-y-2.5">
           
           {/* Selected Mode Dropdown */}
@@ -510,7 +510,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
               <button
                 type="button"
                 onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg glass-input border border-purple-500/30 text-white text-xs font-tech font-bold tracking-wide uppercase hover:border-purple-400/60 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg glass-input border border-purple-500/30 text-white text-xs font-tech font-bold tracking-wide uppercase hover:border-purple-400/60 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-1.5 truncate">
                   <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
@@ -529,7 +529,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
                         setSelectedMode(mode);
                         setIsModeDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-[11px] font-tech font-bold uppercase tracking-wider flex items-center justify-between transition-colors ${
+                      className={`w-full text-left px-3 py-2 text-[11px] font-tech font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${
                         selectedMode === mode
                           ? 'bg-purple-900/60 text-purple-100'
                           : 'text-purple-300/70 hover:bg-purple-950/40 hover:text-white'
@@ -548,7 +548,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setIsMinimized(true)}
-              className="group relative overflow-hidden rounded-lg py-2 px-3 font-tech font-bold text-xs tracking-widest text-purple-200 bg-purple-950/50 hover:bg-purple-900/60 border border-purple-500/30 hover:border-purple-400/60 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(168,85,247,0.1)]"
+              className="group relative overflow-hidden rounded-lg py-2 px-3 font-tech font-bold text-xs tracking-widest text-purple-200 bg-purple-950/50 hover:bg-purple-900/60 border border-purple-500/30 hover:border-purple-400/60 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(168,85,247,0.1)] cursor-pointer"
             >
               <Minimize2 className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
               <span>HIDE</span>
@@ -556,7 +556,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, onLogout }) 
 
             <button
               onClick={onLogout}
-              className="group relative overflow-hidden rounded-lg py-2 px-3 font-tech font-bold text-xs tracking-widest text-white bg-gradient-to-r from-purple-700 via-violet-700 to-fuchsia-700 hover:from-purple-600 hover:via-violet-600 hover:to-fuchsia-600 border border-purple-400/40 active:scale-[0.98] shadow-[0_0_15px_rgba(168,85,247,0.3)] hover:shadow-[0_0_20px_rgba(192,132,252,0.45)] transition-all flex items-center justify-center gap-1.5"
+              className="group relative overflow-hidden rounded-lg py-2 px-3 font-tech font-bold text-xs tracking-widest text-white bg-gradient-to-r from-purple-700 via-violet-700 to-fuchsia-700 hover:from-purple-600 hover:via-violet-600 hover:to-fuchsia-600 border border-purple-400/40 active:scale-[0.98] shadow-[0_0_15px_rgba(168,85,247,0.3)] hover:shadow-[0_0_20px_rgba(192,132,252,0.45)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
               <span>CLOSE</span>
@@ -577,7 +577,7 @@ interface ToggleSwitchProps {
   disabled?: boolean;
 }
 
-const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, disabled = false }) => {
+const ToggleSwitch: FC<ToggleSwitchProps> = ({ checked, onChange, disabled = false }) => {
   return (
     <button
       type="button"

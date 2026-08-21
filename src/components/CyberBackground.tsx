@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef, FC } from 'react';
 
 interface Particle {
   x: number;
@@ -19,7 +19,7 @@ interface CircuitTrace {
   color: string;
 }
 
-export const CyberBackground: React.FC = () => {
+export const CyberBackground: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -51,7 +51,6 @@ export const CyberBackground: React.FC = () => {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('resize', handleResize);
 
-    // Subtle Particle Grid System
     const particleCount = Math.min(Math.floor((width * height) / 22000), 40);
     let particles: Particle[] = [];
 
@@ -75,7 +74,6 @@ export const CyberBackground: React.FC = () => {
       }
     };
 
-    // Minimal elegant circuit traces
     let circuits: CircuitTrace[] = [];
     const initCircuits = () => {
       circuits = [];
@@ -117,13 +115,12 @@ export const CyberBackground: React.FC = () => {
       time += 0.008;
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Draw subtle circuit traces & pulses
+      // 1. Faint Circuit Lines
       ctx.lineWidth = 1;
       for (let c = 0; c < circuits.length; c++) {
         const circuit = circuits[c];
         const pts = circuit.points;
 
-        // Static faint track
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) {
@@ -132,7 +129,6 @@ export const CyberBackground: React.FC = () => {
         ctx.strokeStyle = 'rgba(168, 85, 247, 0.035)';
         ctx.stroke();
 
-        // Node joints
         for (let i = 0; i < pts.length; i++) {
           ctx.beginPath();
           ctx.arc(pts[i].x, pts[i].y, 1.8, 0, Math.PI * 2);
@@ -140,7 +136,6 @@ export const CyberBackground: React.FC = () => {
           ctx.fill();
         }
 
-        // Pulse moving along trace
         circuit.progress += circuit.speed;
         if (circuit.progress > 1) {
           circuit.progress = 0;
@@ -167,7 +162,7 @@ export const CyberBackground: React.FC = () => {
         ctx.shadowBlur = 0;
       }
 
-      // 2. Slow elegant floating particles
+      // 2. Slow floating particles
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
 
@@ -198,7 +193,6 @@ export const CyberBackground: React.FC = () => {
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
 
-        // Subtle connections between nearby particles
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const pjdx = p.x - p2.x;
@@ -231,21 +225,11 @@ export const CyberBackground: React.FC = () => {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#06020c]">
-      {/* 1. Deep Space Ambient Nebula Glows */}
-      <div className="absolute -top-[15%] left-[10%] w-[50vw] h-[50vw] rounded-full bg-purple-950/25 blur-[140px] animate-pulse-slow pointer-events-none" />
-      <div className="absolute top-[45%] -right-[10%] w-[45vw] h-[45vw] rounded-full bg-violet-950/20 blur-[150px] animate-pulse-slow pointer-events-none" style={{ animationDelay: '4s' }} />
-      <div className="absolute -bottom-[10%] left-[25%] w-[40vw] h-[40vw] rounded-full bg-purple-900/15 blur-[160px] animate-pulse-slow pointer-events-none" style={{ animationDelay: '2s' }} />
-
-      {/* 2. Very subtle digital grid */}
+      <div className="absolute -top-[15%] left-[10%] w-[50vw] h-[50vw] rounded-full bg-purple-950/25 blur-[140px] pointer-events-none" />
+      <div className="absolute top-[45%] -right-[10%] w-[45vw] h-[45vw] rounded-full bg-violet-950/20 blur-[150px] pointer-events-none" />
+      <div className="absolute -bottom-[10%] left-[25%] w-[40vw] h-[40vw] rounded-full bg-purple-900/15 blur-[160px] pointer-events-none" />
       <div className="absolute inset-0 cyber-grid opacity-40 pointer-events-none" />
-
-      {/* 3. Interactive Floating Particles & Circuits Canvas */}
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none"
-      />
-
-      {/* 4. Vignette for depth */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(6,2,12,0.85)_75%,#06020c_100%)] pointer-events-none" />
     </div>
   );

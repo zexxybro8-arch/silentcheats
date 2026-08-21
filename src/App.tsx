@@ -1,18 +1,18 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CyberBackground } from './components/CyberBackground';
 import { LoginCard } from './components/LoginCard';
 import { DashboardView } from './components/DashboardView';
 
-export default function App() {
-  const [currentUser, setCurrentUser] = useState<{ username: string; tier: string } | null>(null);
+interface AuthUser {
+  username: string;
+  tier: string;
+}
 
-  const handleLoginSuccess = (userData: { username: string; tier: string }) => {
-    setCurrentUser(userData);
+export default function App() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  const handleLoginSuccess = (user: AuthUser) => {
+    setCurrentUser(user);
   };
 
   const handleLogout = () => {
@@ -20,12 +20,12 @@ export default function App() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-center items-center overflow-x-hidden selection:bg-purple-600 selection:text-white py-6 sm:py-10">
-      {/* Refined Ambient Cybernetic Background */}
+    <div className="relative min-h-screen w-full flex flex-col justify-center items-center py-6 sm:py-10">
+      {/* Dynamic Cyberpunk Ambient Canvas Background */}
       <CyberBackground />
 
-      {/* Main Login View Container */}
-      <main className="relative z-10 w-full flex items-center justify-center">
+      {/* Main Interactive Views */}
+      <main className="w-full flex justify-center items-center">
         {!currentUser ? (
           <LoginCard onLoginSuccess={handleLoginSuccess} />
         ) : (

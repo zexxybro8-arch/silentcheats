@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, Check } from 'lucide-react';
+import { useState, ChangeEvent, FormEvent, FC } from 'react';
+import { User, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 interface LoginCardProps {
   onLoginSuccess: (user: { username: string; tier: string }) => void;
 }
 
-export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
+export const LoginCard: FC<LoginCardProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,12 +14,12 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
 
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
     setUsername(e.target.value);
     if (errorMessage) setErrorMessage(null);
   };
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
     if (errorMessage) setErrorMessage(null);
   };
@@ -28,50 +28,74 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
     setShowPassword(!showPassword);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
 
-    // Validation for empty fields
-    if (!username.trim() && !password.trim()) {
-      setErrorMessage('Please enter your username and password.');
+    const trimmedUsername = username.trim();
+
+    // Reject empty fields immediately
+    if (!trimmedUsername || !password) {
+      setErrorMessage('Invalid username or password');
       return;
     }
 
-    if (!username.trim()) {
-      setErrorMessage('Username cannot be empty.');
-      return;
-    }
-
-    if (!password.trim()) {
-      setErrorMessage('Password cannot be empty.');
-      return;
-    }
-
-    // High-tech authentication sequence
     setIsLoading(true);
     setErrorMessage(null);
 
+    // 1. Initial Handshake animation
     setLoadingStep('INITIALIZING HANDSHAKE...');
-    await new Promise((res) => setTimeout(res, 600));
+    await new Promise((res) => setTimeout(res, 400));
 
+    // 2. Token Authentication animation
     setLoadingStep('AUTHENTICATING TOKEN...');
-    await new Promise((res) => setTimeout(res, 650));
-
-    setLoadingStep('SECURE NODE CONNECTED');
     await new Promise((res) => setTimeout(res, 450));
 
-    if (password.length < 4) {
+    // Try backend authentication endpoint with client-side secure fallback
+    let isAuthenticated = false;
+    let authUser = {
+      username: trimmedUsername,
+      tier: 'VIP CLIENT',
+    };
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: trimmedUsername, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.user) {
+          isAuthenticated = true;
+          authUser = data.user;
+        }
+      }
+    } catch {
+      // Backend unavailable or static build; validate strictly
+      if (trimmedUsername === 'SILENT-81455Y' && password === '987566') {
+        isAuthenticated = true;
+      }
+    }
+
+    // Direct strict credential match check
+    if (trimmedUsername === 'SILENT-81455Y' && password === '987566') {
+      isAuthenticated = true;
+    }
+
+    if (!isAuthenticated) {
       setIsLoading(false);
-      setErrorMessage('Invalid credentials. Access key must be at least 4 characters.');
+      setErrorMessage('Invalid username or password');
       return;
     }
 
+    // 3. Connection Established animation
+    setLoadingStep('SECURE NODE CONNECTED');
+    await new Promise((res) => setTimeout(res, 350));
+
     setIsLoading(false);
-    onLoginSuccess({
-      username: username.trim(),
-      tier: 'VIP CLIENT',
-    });
+    onLoginSuccess(authUser);
   };
 
   return (
@@ -79,27 +103,24 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
       {/* Main Glassmorphism Card */}
       <div className="relative rounded-2xl glass-panel cyber-card-border cyber-glow-purple p-6 sm:p-8 md:p-9 shadow-2xl backdrop-blur-2xl transition-all duration-300">
         
-        {/* Subtle Decorative Top Corner Accents */}
+        {/* Decorative Top Accent lines */}
         <div className="absolute top-0 left-8 w-12 h-[1px] bg-gradient-to-r from-transparent via-purple-400/60 to-transparent" />
         <div className="absolute top-0 right-8 w-12 h-[1px] bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
         <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-24 h-[1.5px] bg-gradient-to-r from-transparent via-purple-400 to-transparent shadow-[0_0_10px_#a855f7]" />
 
-        {/* 1. Perfect Circular Glassmorphic Logo Frame with subtle purple neon glow */}
+        {/* 1. Perfect Circular Glassmorphic Logo Frame (80-100px, object-fit: cover, border-radius: 50%) */}
         <div className="flex justify-center mb-5">
           <div className="relative group">
-            {/* Soft breathing halo behind circle */}
-            <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-purple-600/40 via-violet-500/30 to-fuchsia-600/40 blur-md group-hover:blur-lg transition-all duration-500 animate-pulse-subtle" />
+            {/* Subtle purple outer glow */}
+            <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-purple-600/35 via-violet-500/25 to-fuchsia-600/35 blur-md group-hover:blur-lg group-hover:opacity-100 opacity-80 transition-all duration-500" />
             
-            {/* Circular Glass Container */}
-            <div className="relative w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-[#0c051a]/90 border border-purple-400/40 shadow-[0_0_20px_rgba(168,85,247,0.35)] flex items-center justify-center p-2.5 overflow-hidden transition-transform duration-300 group-hover:scale-[1.02]">
-              {/* Internal subtle gradient overlay */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-b from-purple-500/10 via-transparent to-purple-950/40 pointer-events-none" />
-              
-              {/* Logo Image */}
+            {/* Circular Container */}
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#0c051a]/95 border border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.35)] flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-purple-300 group-hover:shadow-[0_0_28px_rgba(192,132,252,0.5)]">
+              {/* Exact Logo Image with object-fit: cover and 50% border radius */}
               <img
                 src="https://i.ibb.co/LXMBFV36/file-00000000b7fc8211bcf2c107760ddfb3.png"
-                alt="Silent Cheats Logo"
-                className="relative z-10 w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(192,132,252,0.6)] select-none pointer-events-none"
+                alt="SILENT CHEATS Logo"
+                className="w-full h-full object-cover rounded-full select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
               />
             </div>
           </div>
@@ -115,7 +136,7 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
 
-        {/* Error Alert Box if validation fails */}
+        {/* Error Alert Box */}
         {errorMessage && (
           <div className="mb-5 p-3 rounded-xl bg-red-950/40 border border-red-500/30 flex items-start gap-2.5 text-red-200 text-xs sm:text-sm">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
@@ -169,7 +190,7 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
                 type="button"
                 onClick={togglePasswordVisibility}
                 disabled={isLoading}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-purple-400/50 hover:text-purple-300 focus:outline-none transition-colors"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-purple-400/50 hover:text-purple-300 focus:outline-none transition-colors cursor-pointer"
                 title={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
@@ -181,7 +202,7 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
             </div>
           </div>
 
-          {/* Remember Device & Online Status */}
+          {/* Remember Device & Node Online Status */}
           <div className="flex items-center justify-between pt-1">
             <label className="inline-flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -206,9 +227,8 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="relative w-full group overflow-hidden rounded-xl py-3.5 px-6 font-cyber font-bold text-sm sm:text-base tracking-wider text-white bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600 hover:from-purple-500 hover:via-violet-500 hover:to-fuchsia-500 active:scale-[0.985] shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(192,132,252,0.55)] border border-purple-400/35 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+              className="relative w-full group overflow-hidden rounded-xl py-3.5 px-6 font-cyber font-bold text-sm sm:text-base tracking-wider text-white bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600 hover:from-purple-500 hover:via-violet-500 hover:to-fuchsia-500 active:scale-[0.985] shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(192,132,252,0.55)] border border-purple-400/35 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
-              {/* Shimmer sweep effect */}
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 pointer-events-none" />
 
               {isLoading ? (
@@ -226,7 +246,7 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
           </div>
         </form>
 
-        {/* 4. Elegant SAFE ANTIBAN Verification Badge */}
+        {/* 4. Verified Security SAFE ANTIBAN ✅ Badge */}
         <div className="mt-7 pt-4 border-t border-purple-500/15 flex items-center justify-center">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-950/35 border border-purple-500/25 shadow-[0_0_15px_rgba(168,85,247,0.18)] backdrop-blur-md">
             <span className="font-tech font-bold text-xs tracking-wider text-purple-200 uppercase">
