@@ -1,4 +1,4 @@
-import { useState, useEffect, FC } from 'react';
+import { useState, FC } from 'react';
 import { 
   Shield, 
   ShieldCheck, 
@@ -12,9 +12,9 @@ import {
   Sparkles, 
   Check, 
   Zap, 
-  Target
+  Target,
+  Eye
 } from 'lucide-react';
-import { dbService, UserConfig } from '../services/dbService';
 
 interface DashboardViewProps {
   user: {
@@ -32,91 +32,41 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
   const [selectedMode, setSelectedMode] = useState('Stealth Mode (Recommended)');
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
 
-  // AIM CONTROL State
-  const [aimbot, setAimbot] = useState(true);
+  // ALL FEATURES OFF BY DEFAULT ON EVERY FRESH LOGIN
+  const [aimbot, setAimbot] = useState(false);
   const [aimbotRage, setAimbotRage] = useState(false);
-  const [aimbotSilent, setAimbotSilent] = useState(true);
+  const [aimbotSilent, setAimbotSilent] = useState(false);
   const [silentTarget, setSilentTarget] = useState<'BODY' | 'HEAD'>('HEAD');
   const [aimFov, setAimFov] = useState(65);
   const [headshotRate, setHeadshotRate] = useState(85);
 
-  // SAFE MODE State
-  const [safeMode, setSafeMode] = useState(true);
+  // SAFE MODE State (OFF by default)
+  const [safeMode, setSafeMode] = useState(false);
 
-  // ESP Toggles State
+  // ESP Toggles State (ALL OFF by default)
   const [espState, setEspState] = useState({
-    boxEsp: true,
-    skeletonTracking: true,
-    healthBar: true,
-    distanceDisplay: true,
+    boxEsp: false,
+    skeletonTracking: false,
+    healthBar: false,
+    distanceDisplay: false,
     snaplines: false,
   });
 
-  // Config Sliders State
+  // Config Sliders & Toggles State (ALL toggles OFF by default)
   const [configState, setConfigState] = useState({
     smoothFactor: 6.5,
     fovRadius: 75,
     targetBone: 'Head / Neck',
-    crosshairOverlay: true,
-    streamProof: true,
+    crosshairOverlay: false,
+    streamProof: false,
   });
-
-  // Load config from Firestore on mount
-  useEffect(() => {
-    let isMounted = true;
-    dbService.getUserConfig(user.username).then((savedConfig) => {
-      if (savedConfig && isMounted) {
-        if (typeof savedConfig.aimbot === 'boolean') setAimbot(savedConfig.aimbot);
-        if (typeof savedConfig.aimbotRage === 'boolean') setAimbotRage(savedConfig.aimbotRage);
-        if (typeof savedConfig.aimbotSilent === 'boolean') setAimbotSilent(savedConfig.aimbotSilent);
-        if (savedConfig.silentTarget) setSilentTarget(savedConfig.silentTarget);
-        if (typeof savedConfig.aimFov === 'number') setAimFov(savedConfig.aimFov);
-        if (typeof savedConfig.headshotRate === 'number') setHeadshotRate(savedConfig.headshotRate);
-        if (typeof savedConfig.safeMode === 'boolean') setSafeMode(savedConfig.safeMode);
-        if (savedConfig.espState) setEspState(savedConfig.espState);
-        if (savedConfig.configState) setConfigState(savedConfig.configState);
-        if (savedConfig.selectedMode) setSelectedMode(savedConfig.selectedMode);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [user.username]);
-
-  // Sync back changes to Firestore database
-  useEffect(() => {
-    const currentConfig: UserConfig = {
-      aimbot,
-      aimbotRage,
-      aimbotSilent,
-      silentTarget,
-      aimFov,
-      headshotRate,
-      safeMode,
-      espState,
-      configState,
-      selectedMode,
-    };
-    const timer = setTimeout(() => {
-      dbService.saveUserConfig(user.username, currentConfig);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [
-    user.username,
-    aimbot,
-    aimbotRage,
-    aimbotSilent,
-    silentTarget,
-    aimFov,
-    headshotRate,
-    safeMode,
-    espState,
-    configState,
-    selectedMode,
-  ]);
 
   const toggleEsp = (key: keyof typeof espState) => {
     setEspState((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const toggleConfig = (key: 'crosshairOverlay' | 'streamProof') => {
+    setConfigState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const modes = [
@@ -203,13 +153,13 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
       {/* 2. STATUS BAR */}
       <div className="rounded-lg glass-input border border-purple-500/20 px-3 py-1.5 mb-2 flex items-center justify-between text-[11px] font-tech font-bold tracking-wider">
         <div className="flex items-center gap-1.5 text-purple-100">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+          <ShieldCheck className={`w-3.5 h-3.5 ${safeMode ? 'text-emerald-300' : 'text-purple-400'}`} />
           <span className="uppercase tracking-wide">SAFE MODE</span>
         </div>
 
-        <div className="flex items-center gap-1.5 text-emerald-300 font-mono text-[10px]">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] animate-pulse" />
-          <span>ONLINE</span>
+        <div className={`flex items-center gap-1.5 font-mono text-[10px] ${safeMode ? 'text-emerald-300' : 'text-purple-300/70'}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${safeMode ? 'bg-emerald-400 shadow-[0_0_6px_#34d399] animate-pulse' : 'bg-purple-400/50'}`} />
+          <span>{safeMode ? 'PROTECTED' : 'STANDBY'}</span>
         </div>
       </div>
 
@@ -273,40 +223,49 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
             </div>
 
             {/* 1. AIMBOT */}
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
               <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                 AIMBOT
               </span>
-              <ToggleSwitch
-                checked={aimbot}
-                onChange={() => setAimbot(!aimbot)}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={aimbot} />
+                <ToggleSwitch
+                  checked={aimbot}
+                  onChange={() => setAimbot(!aimbot)}
+                />
+              </div>
             </div>
 
             {/* 2. AIMBOT RAGE */}
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
               <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                 AIMBOT RAGE
               </span>
-              <ToggleSwitch
-                checked={aimbotRage}
-                onChange={() => setAimbotRage(!aimbotRage)}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={aimbotRage} />
+                <ToggleSwitch
+                  checked={aimbotRage}
+                  onChange={() => setAimbotRage(!aimbotRage)}
+                />
+              </div>
             </div>
 
             {/* 3. AIMBOT SILENT & BODY/HEAD SELECTOR */}
             <div className="px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-all space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                   AIMBOT SILENT
                 </span>
-                <ToggleSwitch
-                  checked={aimbotSilent}
-                  onChange={() => setAimbotSilent(!aimbotSilent)}
-                />
+                <div className="flex items-center gap-2">
+                  <InjectedBadge active={aimbotSilent} />
+                  <ToggleSwitch
+                    checked={aimbotSilent}
+                    onChange={() => setAimbotSilent(!aimbotSilent)}
+                  />
+                </div>
               </div>
 
-              {/* Segmented Control for BODY and HEAD */}
+              {/* Segmented Control for BODY and HEAD (visible only when SILENT is active) */}
               {aimbotSilent && (
                 <div className="pt-1.5 border-t border-purple-500/15 flex items-center justify-between gap-2">
                   <span className="text-[11px] font-tech font-bold text-purple-300/80 tracking-wider uppercase">
@@ -386,7 +345,7 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
             </div>
 
             {/* SAFE MODE Section */}
-            <div className={`px-3 py-2 rounded-lg transition-all duration-200 flex items-center justify-between ${
+            <div className={`px-3 py-2 rounded-lg transition-all duration-200 flex items-center justify-between gap-2 ${
               safeMode 
                 ? 'bg-gradient-to-r from-purple-950/40 via-emerald-950/20 to-purple-950/30 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.1)]'
                 : 'bg-purple-950/20 border border-purple-500/20'
@@ -403,19 +362,16 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
                   <span className="font-tech font-bold text-xs text-white tracking-wider uppercase">
                     SAFE MODE
                   </span>
-                  {safeMode && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-400/50">
-                      <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                      PROTECTED
-                    </span>
-                  )}
                 </div>
               </div>
               
-              <ToggleSwitch
-                checked={safeMode}
-                onChange={() => setSafeMode(!safeMode)}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={safeMode} />
+                <ToggleSwitch
+                  checked={safeMode}
+                  onChange={() => setSafeMode(!safeMode)}
+                />
+              </div>
             </div>
 
           </div>
@@ -424,54 +380,74 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
         {/* TAB 2: ESP */}
         {activeTab === 'esp' && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
+            {/* 1. 2D Box ESP */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
               <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                 2D Box ESP
               </span>
-              <ToggleSwitch
-                checked={espState.boxEsp}
-                onChange={() => toggleEsp('boxEsp')}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={espState.boxEsp} />
+                <ToggleSwitch
+                  checked={espState.boxEsp}
+                  onChange={() => toggleEsp('boxEsp')}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
+            {/* 2. Skeleton Tracking */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
               <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                 Skeleton Tracking
               </span>
-              <ToggleSwitch
-                checked={espState.skeletonTracking}
-                onChange={() => toggleEsp('skeletonTracking')}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={espState.skeletonTracking} />
+                <ToggleSwitch
+                  checked={espState.skeletonTracking}
+                  onChange={() => toggleEsp('skeletonTracking')}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
+            {/* 3. Health & Shield Bar */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
               <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                 Health & Shield Bar
               </span>
-              <ToggleSwitch
-                checked={espState.healthBar}
-                onChange={() => toggleEsp('healthBar')}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={espState.healthBar} />
+                <ToggleSwitch
+                  checked={espState.healthBar}
+                  onChange={() => toggleEsp('healthBar')}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
+            {/* 4. Distance Display */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
               <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                 Distance Display
               </span>
-              <ToggleSwitch
-                checked={espState.distanceDisplay}
-                onChange={() => toggleEsp('distanceDisplay')}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={espState.distanceDisplay} />
+                <ToggleSwitch
+                  checked={espState.distanceDisplay}
+                  onChange={() => toggleEsp('distanceDisplay')}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors">
+            {/* 5. Snaplines */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
               <span className="font-tech font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
                 Snaplines
               </span>
-              <ToggleSwitch
-                checked={espState.snaplines}
-                onChange={() => toggleEsp('snaplines')}
-              />
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={espState.snaplines} />
+                <ToggleSwitch
+                  checked={espState.snaplines}
+                  onChange={() => toggleEsp('snaplines')}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -523,6 +499,39 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
                 <option value="Pelvis / Core">Pelvis / Core</option>
                 <option value="Closest Bone">Closest Bone</option>
               </select>
+            </div>
+
+            {/* Optional Config Toggles with Injected Indicators */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
+              <div className="flex items-center gap-1.5">
+                <Crosshair className="w-3.5 h-3.5 text-purple-400" />
+                <span className="font-tech font-bold text-xs text-white tracking-wide uppercase">
+                  Crosshair Overlay
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={configState.crosshairOverlay} />
+                <ToggleSwitch
+                  checked={configState.crosshairOverlay}
+                  onChange={() => toggleConfig('crosshairOverlay')}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 hover:border-purple-400/40 transition-colors gap-2">
+              <div className="flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5 text-purple-400" />
+                <span className="font-tech font-bold text-xs text-white tracking-wide uppercase">
+                  Stream Proof
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <InjectedBadge active={configState.streamProof} />
+                <ToggleSwitch
+                  checked={configState.streamProof}
+                  onChange={() => toggleConfig('streamProof')}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -625,6 +634,21 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
   );
 };
 
+// Reusable Modern Compact Injected Status Badge
+interface InjectedBadgeProps {
+  active: boolean;
+}
+
+const InjectedBadge: FC<InjectedBadgeProps> = ({ active }) => {
+  if (!active) return null;
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-400/50 text-emerald-300 font-mono text-[10px] font-bold tracking-wider shadow-[0_0_8px_rgba(52,211,153,0.35)] transition-all duration-200 shrink-0">
+      <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />
+      <span>INJECTED</span>
+    </span>
+  );
+};
+
 // Reusable Modern Compact Toggle Switch Component
 interface ToggleSwitchProps {
   checked: boolean;
@@ -655,3 +679,4 @@ const ToggleSwitch: FC<ToggleSwitchProps> = ({ checked, onChange, disabled = fal
     </button>
   );
 };
+
