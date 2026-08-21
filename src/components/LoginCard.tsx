@@ -226,15 +226,25 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
           </div>
         </form>
 
-        {/* 4. Elegant SAFE ANTIBAN ✅ Badge */}
+        {/* 4. Elegant SAFE ANTIBAN Verification Badge */}
         <div className="mt-7 pt-4 border-t border-purple-500/15 flex items-center justify-center">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/35 border border-purple-500/20 shadow-[0_0_12px_rgba(168,85,247,0.15)] backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-950/35 border border-purple-500/25 shadow-[0_0_15px_rgba(168,85,247,0.18)] backdrop-blur-md">
             <span className="font-tech font-bold text-xs tracking-wider text-purple-200 uppercase">
               SAFE ANTIBAN
             </span>
-            <span className="text-xs select-none leading-none inline-block drop-shadow-[0_0_6px_rgba(34,197,94,0.4)]" aria-label="verified">
-              ✅
-            </span>
+            <div className="relative flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400/60 shadow-[0_0_8px_rgba(52,211,153,0.55)]">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-2.5 h-2.5 text-emerald-300 drop-shadow-[0_0_3px_#34d399]"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
           </div>
         </div>
 
