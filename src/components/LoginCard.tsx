@@ -1,5 +1,6 @@
 import { useState, ChangeEvent, FormEvent, FC } from 'react';
 import { User, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { dbService } from '../services/dbService';
 
 interface LoginCardProps {
   onLoginSuccess: (user: { username: string; tier: string }) => void;
@@ -45,57 +46,25 @@ export const LoginCard: FC<LoginCardProps> = ({ onLoginSuccess }) => {
 
     // 1. Initial Handshake animation
     setLoadingStep('INITIALIZING HANDSHAKE...');
-    await new Promise((res) => setTimeout(res, 400));
+    await new Promise((res) => setTimeout(res, 350));
 
-    // 2. Token Authentication animation
+    // 2. Token Authentication & Database validation
     setLoadingStep('AUTHENTICATING TOKEN...');
-    await new Promise((res) => setTimeout(res, 450));
+    const result = await dbService.validateUserCredentials(trimmedUsername, password);
+    await new Promise((res) => setTimeout(res, 350));
 
-    // Try backend authentication endpoint with client-side secure fallback
-    let isAuthenticated = false;
-    let authUser = {
-      username: trimmedUsername,
-      tier: 'VIP CLIENT',
-    };
-
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: trimmedUsername, password }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.user) {
-          isAuthenticated = true;
-          authUser = data.user;
-        }
-      }
-    } catch {
-      // Backend unavailable or static build; validate strictly
-      if (trimmedUsername === 'SILENT-81455Y' && password === '987566') {
-        isAuthenticated = true;
-      }
-    }
-
-    // Direct strict credential match check
-    if (trimmedUsername === 'SILENT-81455Y' && password === '987566') {
-      isAuthenticated = true;
-    }
-
-    if (!isAuthenticated) {
+    if (!result.success || !result.user) {
       setIsLoading(false);
       setErrorMessage('Invalid username or password');
       return;
     }
 
-    // 3. Connection Established animation
+    // 3. Secure Node Connected animation
     setLoadingStep('SECURE NODE CONNECTED');
-    await new Promise((res) => setTimeout(res, 350));
+    await new Promise((res) => setTimeout(res, 300));
 
     setIsLoading(false);
-    onLoginSuccess(authUser);
+    onLoginSuccess(result.user);
   };
 
   return (

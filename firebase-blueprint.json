@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "users": {
+      "title": "Users",
+      "description": "User accounts and access credentials",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "tier": { "type": "string" },
+        "status": { "type": "string" },
+        "hwidMatched": { "type": "boolean" },
+        "protocol": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["username", "tier"]
+    },
+    "user_configs": {
+      "title": "User Configurations",
+      "description": "User cheat features, aim parameters and ESP settings stored in Firestore",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "aimbot": { "type": "boolean" },
+        "aimbotRage": { "type": "boolean" },
+        "aimbotSilent": { "type": "boolean" },
+        "silentTarget": { "type": "string" },
+        "aimFov": { "type": "number" },
+        "headshotRate": { "type": "number" },
+        "safeMode": { "type": "boolean" },
+        "espState": { "type": "object" },
+        "configState": { "type": "object" },
+        "selectedMode": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["username"]
+    },
+    "session_logs": {
+      "title": "Session Logs",
+      "description": "Connection handshake and security session logs",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "node": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["username", "timestamp"]
+    }
+  },
+  "rules": {
+    "users": {
+      "read": true,
+      "write": true
+    },
+    "user_configs": {
+      "read": true,
+      "write": true
+    },
+    "session_logs": {
+      "read": true,
+      "write": true
+    }
+  }
+}

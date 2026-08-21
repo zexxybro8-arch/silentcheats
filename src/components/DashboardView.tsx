@@ -1,4 +1,4 @@
-import { useState, FC } from 'react';
+import { useState, useEffect, FC } from 'react';
 import { 
   Shield, 
   ShieldCheck, 
@@ -14,6 +14,7 @@ import {
   Zap, 
   Target
 } from 'lucide-react';
+import { dbService, UserConfig } from '../services/dbService';
 
 interface DashboardViewProps {
   user: {
@@ -59,6 +60,60 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
     crosshairOverlay: true,
     streamProof: true,
   });
+
+  // Load config from Firestore on mount
+  useEffect(() => {
+    let isMounted = true;
+    dbService.getUserConfig(user.username).then((savedConfig) => {
+      if (savedConfig && isMounted) {
+        if (typeof savedConfig.aimbot === 'boolean') setAimbot(savedConfig.aimbot);
+        if (typeof savedConfig.aimbotRage === 'boolean') setAimbotRage(savedConfig.aimbotRage);
+        if (typeof savedConfig.aimbotSilent === 'boolean') setAimbotSilent(savedConfig.aimbotSilent);
+        if (savedConfig.silentTarget) setSilentTarget(savedConfig.silentTarget);
+        if (typeof savedConfig.aimFov === 'number') setAimFov(savedConfig.aimFov);
+        if (typeof savedConfig.headshotRate === 'number') setHeadshotRate(savedConfig.headshotRate);
+        if (typeof savedConfig.safeMode === 'boolean') setSafeMode(savedConfig.safeMode);
+        if (savedConfig.espState) setEspState(savedConfig.espState);
+        if (savedConfig.configState) setConfigState(savedConfig.configState);
+        if (savedConfig.selectedMode) setSelectedMode(savedConfig.selectedMode);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [user.username]);
+
+  // Sync back changes to Firestore database
+  useEffect(() => {
+    const currentConfig: UserConfig = {
+      aimbot,
+      aimbotRage,
+      aimbotSilent,
+      silentTarget,
+      aimFov,
+      headshotRate,
+      safeMode,
+      espState,
+      configState,
+      selectedMode,
+    };
+    const timer = setTimeout(() => {
+      dbService.saveUserConfig(user.username, currentConfig);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    user.username,
+    aimbot,
+    aimbotRage,
+    aimbotSilent,
+    silentTarget,
+    aimFov,
+    headshotRate,
+    safeMode,
+    espState,
+    configState,
+    selectedMode,
+  ]);
 
   const toggleEsp = (key: keyof typeof espState) => {
     setEspState((prev) => ({ ...prev, [key]: !prev[key] }));
