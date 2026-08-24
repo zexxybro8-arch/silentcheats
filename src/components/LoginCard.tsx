@@ -1,9 +1,9 @@
 import { useState, ChangeEvent, FormEvent, FC } from 'react';
 import { User, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
-import { dbService } from '../services/dbService';
+import { dbService, AuthUser } from '../services/dbService';
 
 interface LoginCardProps {
-  onLoginSuccess: (user: { username: string; tier: string }) => void;
+  onLoginSuccess: (user: AuthUser) => void;
 }
 
 export const LoginCard: FC<LoginCardProps> = ({ onLoginSuccess }) => {

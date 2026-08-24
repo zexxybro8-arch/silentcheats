@@ -33,9 +33,15 @@ export interface UserConfig {
   selectedMode: string;
 }
 
+export interface AuthUser {
+  username: string;
+  tier: string;
+  passVerified?: boolean;
+}
+
 export const dbService = {
   // Validate credentials against Firestore database
-  async validateUserCredentials(username: string, password: string): Promise<{ success: boolean; user?: { username: string; tier: string } }> {
+  async validateUserCredentials(username: string, password: string): Promise<{ success: boolean; user?: AuthUser }> {
     try {
       const trimmedUser = username.trim();
 
@@ -43,22 +49,38 @@ export const dbService = {
       const userRef = doc(db, 'users', trimmedUser);
       let userSnap = await getDoc(userRef);
 
-      // Bootstrap / seed primary authorized user in Firestore if not existing
-      if (!userSnap.exists() && trimmedUser === 'SILENT-81455Y') {
-        const initialUserData = {
-          username: 'SILENT-81455Y',
-          tier: 'VIP CLIENT',
-          passwordHash: '987566',
-          status: 'ACTIVE',
-          hwidMatched: true,
-          protocol: 'KERNEL RING-0',
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(userRef, initialUserData);
-        userSnap = await getDoc(userRef);
+      // Bootstrap / seed authorized users in Firestore if not existing
+      if (!userSnap.exists()) {
+        if (trimmedUser === 'USER-9875' && password === '767902') {
+          const initialUserData = {
+            username: 'USER-9875',
+            tier: 'VIP CLIENT',
+            passwordHash: '767902',
+            passVerified: true,
+            status: 'ACTIVE',
+            hwidMatched: true,
+            protocol: 'KERNEL RING-0',
+            createdAt: new Date().toISOString()
+          };
+          await setDoc(userRef, initialUserData);
+          userSnap = await getDoc(userRef);
+        } else if (trimmedUser === 'USER-81455' && password === '987566') {
+          const initialUserData = {
+            username: 'USER-81455',
+            tier: 'VIP CLIENT',
+            passwordHash: '987566',
+            passVerified: false,
+            status: 'ACTIVE',
+            hwidMatched: true,
+            protocol: 'KERNEL RING-0',
+            createdAt: new Date().toISOString()
+          };
+          await setDoc(userRef, initialUserData);
+          userSnap = await getDoc(userRef);
+        }
       }
 
-      if (userSnap.exists()) {
+      if (userSnap && userSnap.exists()) {
         const userData = userSnap.data();
         if (userData.username === trimmedUser && userData.passwordHash === password) {
           // Record connection log in Firestore
@@ -74,21 +96,41 @@ export const dbService = {
             // non-blocking
           }
 
+          const isPassVerified = userData.passVerified !== undefined 
+            ? Boolean(userData.passVerified) 
+            : trimmedUser === 'USER-9875';
+
           return {
             success: true,
             user: {
               username: userData.username,
-              tier: userData.tier || 'VIP CLIENT'
+              tier: userData.tier || 'VIP CLIENT',
+              passVerified: isPassVerified,
             }
           };
         }
       }
 
       // Hardened fallback validation if network or Firestore initialization is cold
-      if (trimmedUser === 'SILENT-81455Y' && password === '987566') {
+      if (trimmedUser === 'USER-9875' && password === '767902') {
         return {
           success: true,
-          user: { username: 'SILENT-81455Y', tier: 'VIP CLIENT' }
+          user: { 
+            username: 'USER-9875', 
+            tier: 'VIP CLIENT',
+            passVerified: true
+          }
+        };
+      }
+
+      if (trimmedUser === 'USER-81455' && password === '987566') {
+        return {
+          success: true,
+          user: { 
+            username: 'USER-81455', 
+            tier: 'VIP CLIENT',
+            passVerified: false
+          }
         };
       }
 
@@ -96,10 +138,24 @@ export const dbService = {
     } catch {
       // If Firestore connection has a network hiccup, perform strict fallback
       const trimmedUser = username.trim();
-      if (trimmedUser === 'SILENT-81455Y' && password === '987566') {
+      if (trimmedUser === 'USER-9875' && password === '767902') {
         return {
           success: true,
-          user: { username: 'SILENT-81455Y', tier: 'VIP CLIENT' }
+          user: { 
+            username: 'USER-9875', 
+            tier: 'VIP CLIENT',
+            passVerified: true
+          }
+        };
+      }
+      if (trimmedUser === 'USER-81455' && password === '987566') {
+        return {
+          success: true,
+          user: { 
+            username: 'USER-81455', 
+            tier: 'VIP CLIENT',
+            passVerified: false
+          }
         };
       }
       return { success: false };

@@ -2,21 +2,39 @@ import { useState } from 'react';
 import { CyberBackground } from './components/CyberBackground';
 import { LoginCard } from './components/LoginCard';
 import { DashboardView } from './components/DashboardView';
-
-interface AuthUser {
-  username: string;
-  tier: string;
-}
+import { AuthUser } from './services/dbService';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('sc_auth_session') || localStorage.getItem('sc_auth_session');
+      if (saved) {
+        return JSON.parse(saved) as AuthUser;
+      }
+    } catch {
+      // fallback
+    }
+    return null;
+  });
 
   const handleLoginSuccess = (user: AuthUser) => {
     setCurrentUser(user);
+    try {
+      sessionStorage.setItem('sc_auth_session', JSON.stringify(user));
+      localStorage.setItem('sc_auth_session', JSON.stringify(user));
+    } catch {
+      // fallback
+    }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    try {
+      sessionStorage.removeItem('sc_auth_session');
+      localStorage.removeItem('sc_auth_session');
+    } catch {
+      // fallback
+    }
   };
 
   return (
