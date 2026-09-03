@@ -709,7 +709,7 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout }) => {
             {/* Verification Message */}
             <div className="p-4 rounded-xl bg-purple-950/50 border border-purple-500/30 mb-5 text-center shadow-inner">
               <p className="font-tech font-bold text-sm text-purple-100 leading-relaxed">
-                Pay ₹300 to your admin to verify your pass.
+                Pay ₹200 to your admin to verify your pass.
               </p>
             </div>
 
