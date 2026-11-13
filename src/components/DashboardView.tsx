@@ -58,27 +58,74 @@ export const DashboardView: FC<DashboardViewProps> = ({
   const isSpecialUser = requiresPassVerification;
   const isSpecialAccount = requiresPassVerification && !isPassVerified;
 
-  // Sync pass verification & account active status from client-side store on mount
+  // Sync pass verification & account active status via backend + real-time Firestore listener
   useEffect(() => {
-    const statusData = dbService.getPassStatus(user.username);
-    if (!statusData) return;
+    let active = true;
 
-    if (statusData.status === 'INACTIVE') {
-      onLogout();
-      return;
-    }
+    dbService.getPassStatus(user.username).then((res) => {
+      if (!active) return;
+      if (!res.exists) {
+        onLogout();
+        return;
+      }
+      const statusData = res.data;
+      if (!statusData) return;
 
-    if (
-      statusData.passVerified !== user.passVerified ||
-      statusData.passVerificationRequired !== user.passVerificationRequired
-    ) {
-      onUserSync?.({
-        passVerified: statusData.passVerified,
-        passVerificationRequired: statusData.passVerificationRequired,
-        status: statusData.status,
-      });
-    }
-  }, [user.username, user.passVerified, user.passVerificationRequired, onLogout, onUserSync]);
+      if (statusData.status === 'INACTIVE') {
+        onLogout();
+        return;
+      }
+
+      if (
+        statusData.passVerified !== user.passVerified ||
+        statusData.passVerificationRequired !== user.passVerificationRequired ||
+        statusData.tier !== user.tier ||
+        statusData.status !== user.status
+      ) {
+        onUserSync?.({
+          passVerified: statusData.passVerified,
+          passVerificationRequired: statusData.passVerificationRequired,
+          status: statusData.status,
+          tier: statusData.tier,
+        });
+      }
+    });
+
+    const unsubscribe = dbService.subscribeToUserStatus(
+      user.username,
+      (liveStatus) => {
+        if (!active) return;
+        if (liveStatus.status === 'INACTIVE') {
+          onLogout();
+          return;
+        }
+        onUserSync?.({
+          passVerified: liveStatus.passVerified,
+          passVerificationRequired: liveStatus.passVerificationRequired,
+          status: liveStatus.status,
+          tier: liveStatus.tier,
+        });
+      },
+      () => {
+        if (active) {
+          onLogout();
+        }
+      }
+    );
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [
+    user.username,
+    user.passVerified,
+    user.passVerificationRequired,
+    user.tier,
+    user.status,
+    onLogout,
+    onUserSync,
+  ]);
 
   const openVerifyModal = () => {
     setVerifyError(null);
@@ -678,7 +725,7 @@ export const DashboardView: FC<DashboardViewProps> = ({
               </div>
               <div className="flex items-center justify-between pb-1.5 border-b border-purple-500/15">
                 <span className="text-[11px] font-tech font-bold text-purple-300/80 uppercase">TIER</span>
-                <span className="text-[10px] font-mono text-purple-300 bg-purple-900/60 px-2 py-0.2 rounded border border-purple-500/30">VIP UNLIMITED</span>
+                <span className="text-[10px] font-mono text-purple-300 bg-purple-900/60 px-2 py-0.2 rounded border border-purple-500/30 uppercase">{user.tier || 'VIP UNLIMITED'}</span>
               </div>
               <div className="flex items-center justify-between pb-1.5 border-b border-purple-500/15">
                 <span className="text-[11px] font-tech font-bold text-purple-300/80 uppercase">HARDWARE</span>

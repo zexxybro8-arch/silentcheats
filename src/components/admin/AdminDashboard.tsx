@@ -106,6 +106,12 @@ export const AdminDashboard: FC<AdminDashboardProps> = ({ admin, onLogout }) => 
 
   useEffect(() => {
     loadAllData(false);
+    const unsubscribe = adminService.subscribeToAdminSync(() => {
+      loadAllData(true);
+    });
+    return () => {
+      unsubscribe();
+    };
   }, [loadAllData]);
 
   const showToast = (type: 'success' | 'error', message: string) => {

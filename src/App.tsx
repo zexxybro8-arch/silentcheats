@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Loader2 } from 'lucide-react';
 import { CyberBackground } from './components/CyberBackground';
 import { LoginCard } from './components/LoginCard';
 import { DashboardView } from './components/DashboardView';
@@ -7,7 +8,7 @@ import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminPasswordChangeCard } from './components/admin/AdminPasswordChangeCard';
 import { adminService, AdminSession } from './services/adminService';
-import { AuthUser } from './services/dbService';
+import { dbService, AuthUser } from './services/dbService';
 
 export default function App() {
   const isAdminRoute =
@@ -27,12 +28,16 @@ export default function App() {
   });
 
   const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
+  const [isRestoringAdmin, setIsRestoringAdmin] = useState<boolean>(
+    () => !isAdminRoute && adminService.hasStoredToken()
+  );
   const [showAdminModal, setShowAdminModal] = useState(false);
 
-  // Restore separate admin session on refresh only if an admin token exists
+  // Restore persistent admin session across page refreshes and browser reopens
   useEffect(() => {
-    if (isAdminRoute || !adminService.hasStoredToken()) return;
+    if (isAdminRoute) return;
     let active = true;
+
     adminService
       .checkSession()
       .then((verifiedAdmin) => {
@@ -42,7 +47,13 @@ export default function App() {
       })
       .catch(() => {
         // ignore invalid/expired token
+      })
+      .finally(() => {
+        if (active) {
+          setIsRestoringAdmin(false);
+        }
       });
+
     return () => {
       active = false;
     };
@@ -82,6 +93,30 @@ export default function App() {
     });
   }, []);
 
+  // Ensure restored user session stays synced with global database on app load
+  useEffect(() => {
+    if (isAdminRoute || !currentUser) return;
+    let active = true;
+    dbService.getPassStatus(currentUser.username).then((res) => {
+      if (!active) return;
+      if (!res.exists || res.data?.status === 'INACTIVE') {
+        handleLogout();
+        return;
+      }
+      if (res.data) {
+        handleUserSync({
+          tier: res.data.tier,
+          status: res.data.status,
+          passVerificationRequired: res.data.passVerificationRequired,
+          passVerified: res.data.passVerified,
+        });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [isAdminRoute, currentUser?.username, handleLogout, handleUserSync]);
+
   const handlePassVerified = useCallback(() => {
     handleUserSync({ passVerified: true });
   }, [handleUserSync]);
@@ -96,6 +131,18 @@ export default function App() {
     setAdminSession(null);
   };
 
+  const handleLogoClick = async () => {
+    if (adminSession) return;
+    if (adminService.hasStoredToken()) {
+      const verified = await adminService.checkSession();
+      if (verified) {
+        setAdminSession(verified);
+        return;
+      }
+    }
+    setShowAdminModal(true);
+  };
+
   return (
     <div className="relative min-h-screen w-full flex flex-col justify-center items-center py-6 sm:py-10">
       {/* Dynamic Cyberpunk Ambient Canvas Background */}
@@ -105,6 +152,13 @@ export default function App() {
       <main className="w-full flex justify-center items-center">
         {isAdminRoute ? (
           <AdminPortal />
+        ) : isRestoringAdmin ? (
+          <div className="flex flex-col items-center justify-center gap-3 text-purple-300 py-12">
+            <Loader2 className="w-7 h-7 animate-spin text-purple-400" />
+            <span className="font-mono text-xs uppercase tracking-widest">
+              RESTORING ADMIN SESSION...
+            </span>
+          </div>
         ) : adminSession ? (
           adminSession.mustChangePassword ? (
             <AdminPasswordChangeCard
@@ -119,7 +173,7 @@ export default function App() {
           <>
             <LoginCard
               onLoginSuccess={handleLoginSuccess}
-              onLogoClick={() => setShowAdminModal(true)}
+              onLogoClick={handleLogoClick}
             />
             <AdminLoginModal
               isOpen={showAdminModal}

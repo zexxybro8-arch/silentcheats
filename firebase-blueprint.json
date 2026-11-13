@@ -5,24 +5,25 @@
       "description": "Administrator accounts with scrypt-hashed passwords and role metadata",
       "type": "object",
       "properties": {
-        "username": { "type": "string" },
+        "username": { "type": "string", "minLength": 3, "maxLength": 32 },
         "passwordHash": { "type": "string" },
         "role": { "type": "string" },
         "active": { "type": "boolean" },
+        "mustChangePassword": { "type": "boolean" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
-      "required": ["username", "passwordHash", "role"]
+      "required": ["username", "passwordHash", "role", "active"]
     },
     "users": {
       "title": "Users",
       "description": "User accounts, scrypt password hashes, status, and pass verification flags",
       "type": "object",
       "properties": {
-        "username": { "type": "string" },
+        "username": { "type": "string", "minLength": 3, "maxLength": 32, "pattern": "^[a-zA-Z0-9_-]{3,32}$" },
         "passwordHash": { "type": "string" },
-        "tier": { "type": "string" },
-        "status": { "type": "string" },
+        "tier": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
         "passVerificationRequired": { "type": "boolean" },
         "passVerified": { "type": "boolean" },
         "hwidMatched": { "type": "boolean" },
@@ -31,7 +32,21 @@
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
-      "required": ["username", "tier", "status"]
+      "required": ["username", "passwordHash", "tier", "status"]
+    },
+    "user_status": {
+      "title": "User Status Projection",
+      "description": "Non-sensitive live synchronization projection of user account status and pass verification state",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string", "minLength": 3, "maxLength": 32 },
+        "tier": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "passVerificationRequired": { "type": "boolean" },
+        "passVerified": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["username", "status", "passVerificationRequired", "passVerified"]
     },
     "user_configs": {
       "title": "User Configurations",
@@ -71,6 +86,7 @@
       "type": "object",
       "properties": {
         "codeHash": { "type": "string" },
+        "codeCipher": { "type": "string" },
         "codeLabel": { "type": "string" },
         "targetUser": { "type": "string" },
         "used": { "type": "boolean" },
@@ -85,7 +101,7 @@
         "createdAt": { "type": "string" },
         "revokedAt": { "type": "string" }
       },
-      "required": ["used", "active", "targetUser"]
+      "required": ["codeHash", "used", "active", "targetUser"]
     },
     "admin_logs": {
       "title": "Admin Logs",
@@ -101,30 +117,34 @@
       "required": ["actor", "action", "timestamp"]
     }
   },
-  "rules": {
-    "admins": {
-      "read": true,
-      "write": true
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/admins" },
+      "description": "Administrator credentials and role flags"
     },
-    "users": {
-      "read": true,
-      "write": true
+    "/users/{username}": {
+      "schema": { "$ref": "#/entities/users" },
+      "description": "Global user accounts managed by admin"
     },
-    "user_configs": {
-      "read": true,
-      "write": true
+    "/user_status/{username}": {
+      "schema": { "$ref": "#/entities/user_status" },
+      "description": "Non-sensitive user status and pass verification sync documents"
     },
-    "session_logs": {
-      "read": true,
-      "write": true
+    "/user_configs/{username}": {
+      "schema": { "$ref": "#/entities/user_configs" },
+      "description": "Per-user feature preferences"
     },
-    "verification_codes": {
-      "read": true,
-      "write": true
+    "/session_logs/{logId}": {
+      "schema": { "$ref": "#/entities/session_logs" },
+      "description": "User connection audit logs"
     },
-    "admin_logs": {
-      "read": true,
-      "write": true
+    "/verification_codes/{codeHash}": {
+      "schema": { "$ref": "#/entities/verification_codes" },
+      "description": "SHA-256 hashed pass verification codes"
+    },
+    "/admin_logs/{logId}": {
+      "schema": { "$ref": "#/entities/admin_logs" },
+      "description": "Admin audit trail events"
     }
   }
 }

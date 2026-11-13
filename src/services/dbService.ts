@@ -1,4 +1,5 @@
-import { localStore, verifyClientPassword } from './localStore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 export interface UserConfig {
   aimbot: boolean;
@@ -33,8 +34,16 @@ export interface AuthUser {
   passVerified?: boolean;
 }
 
+export interface UserStatusSnapshot {
+  username: string;
+  tier: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  passVerificationRequired: boolean;
+  passVerified: boolean;
+}
+
 export const dbService = {
-  // Validate credentials purely on the client side
+  // Validate credentials securely against the backend + global Firestore database
   async validateUserCredentials(
     username: string,
     password: string
@@ -44,55 +53,106 @@ export const dbService = {
       return { success: false, error: 'Invalid username or password' };
     }
 
-    const users = localStore.getUsers();
-    const matched = users.find((u) => u.username === trimmedUser);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: trimmedUser, password }),
+      });
 
-    if (!matched) {
-      return { success: false, error: 'Invalid username or password' };
-    }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.user) {
+        return {
+          success: false,
+          error: typeof data?.error === 'string' ? data.error : 'Invalid username or password',
+        };
+      }
 
-    if (matched.status === 'INACTIVE') {
+      return {
+        success: true,
+        user: data.user as AuthUser,
+      };
+    } catch {
       return {
         success: false,
-        error: 'Your account has been deactivated. Contact Admin Support.',
+        error: 'Unable to connect to authentication server. Please check your connection.',
       };
     }
+  },
 
-    if (!verifyClientPassword(password, matched.passwordHash)) {
-      return { success: false, error: 'Invalid username or password' };
+  // Fetch live pass & account status from backend
+  async getPassStatus(username: string): Promise<{
+    exists: boolean;
+    data?: UserStatusSnapshot;
+  }> {
+    const cleanUser = username.trim();
+    if (!cleanUser) return { exists: false };
+
+    try {
+      const response = await fetch(
+        `/api/pass-status?username=${encodeURIComponent(cleanUser)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      );
+
+      if (response.status === 404) {
+        return { exists: false };
+      }
+
+      if (!response.ok) {
+        return { exists: true };
+      }
+
+      const data = (await response.json()) as UserStatusSnapshot;
+      return { exists: true, data };
+    } catch {
+      return { exists: true };
     }
+  },
 
-    return {
-      success: true,
-      user: {
-        username: matched.username,
-        tier: matched.tier,
-        status: matched.status,
-        passVerificationRequired: matched.passVerificationRequired,
-        passVerified: matched.passVerified,
+  // Real-time Firestore listener for instant cross-device account & verification synchronization
+  subscribeToUserStatus(
+    username: string,
+    onUpdate: (status: UserStatusSnapshot) => void,
+    onMissing?: () => void
+  ): () => void {
+    const cleanUser = username.trim();
+    if (!cleanUser) return () => {};
+
+    const path = `user_status/${cleanUser}`;
+    const ref = doc(db, 'user_status', cleanUser);
+
+    return onSnapshot(
+      ref,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          onMissing?.();
+          return;
+        }
+        const raw = snapshot.data();
+        onUpdate({
+          username: typeof raw.username === 'string' ? raw.username : cleanUser,
+          tier: typeof raw.tier === 'string' ? raw.tier : 'VIP UNLIMITED',
+          status: raw.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
+          passVerificationRequired: Boolean(raw.passVerificationRequired),
+          passVerified: Boolean(raw.passVerified),
+        });
       },
-    };
+      (error) => {
+        console.warn('User status sync listener warning:', error);
+        try {
+          handleFirestoreError(error, OperationType.GET, path);
+        } catch {
+          // Keep dashboard responsive if rule or transient network error occurs
+        }
+      }
+    );
   },
 
-  // Read live pass & account status from localStore
-  getPassStatus(username: string): {
-    username: string;
-    status: 'ACTIVE' | 'INACTIVE';
-    passVerificationRequired: boolean;
-    passVerified: boolean;
-  } | null {
-    const users = localStore.getUsers();
-    const found = users.find((u) => u.username === username.trim());
-    if (!found) return null;
-    return {
-      username: found.username,
-      status: found.status,
-      passVerificationRequired: found.passVerificationRequired,
-      passVerified: found.passVerified,
-    };
-  },
-
-  // Validate and redeem verification code purely on the client side
+  // Redeem verification code securely via backend transaction
   async verifyPassCode(
     username: string,
     rawCode: string
@@ -111,123 +171,57 @@ export const dbService = {
       };
     }
 
-    if (!/^[A-Z0-9]{4,32}$/.test(cleanCode)) {
+    try {
+      const response = await fetch('/api/verify-pass', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: cleanUser, code: cleanCode }),
+      });
+
+      const data = await response.json().catch(() => ({}));
       return {
-        success: false,
+        success: Boolean(response.ok && data?.success),
+        passVerified: Boolean(data?.passVerified),
         message:
-          'Invalid verification code format. Only alphanumeric codes (4–32 characters) are accepted.',
+          typeof data?.message === 'string'
+            ? data.message
+            : 'Unable to verify code at this moment. Please try again.',
       };
-    }
-
-    const users = localStore.getUsers();
-    const userIndex = users.findIndex((u) => u.username === cleanUser);
-    if (userIndex === -1) {
-      return { success: false, message: 'User account not found.' };
-    }
-
-    if (users[userIndex].status === 'INACTIVE') {
+    } catch {
       return {
         success: false,
-        message: 'Your account is deactivated. Contact Admin Support.',
+        message: 'Network error while verifying code. Please try again.',
       };
     }
-
-    const codes = localStore.getCodes();
-    const codeIndex = codes.findIndex((c) => c.code.toUpperCase() === cleanCode);
-    if (codeIndex === -1) {
-      return {
-        success: false,
-        message:
-          'Invalid verification code. Please check the code from Admin Support and try again.',
-      };
-    }
-
-    const codeRecord = codes[codeIndex];
-
-    if (!codeRecord.active) {
-      return {
-        success: false,
-        message: 'This verification code has been revoked. Please contact Admin Support.',
-      };
-    }
-
-    if (codeRecord.expiresAt) {
-      const expiryMs = Date.parse(codeRecord.expiresAt);
-      if (!Number.isNaN(expiryMs) && expiryMs <= Date.now()) {
-        return {
-          success: false,
-          message:
-            'This verification code has expired. Please request a new code from Admin Support.',
-        };
-      }
-    }
-
-    if (codeRecord.usedCount >= codeRecord.maxUses || codeRecord.used) {
-      return {
-        success: false,
-        message:
-          'This verification code has already been used. Please contact Admin Support for a fresh code.',
-      };
-    }
-
-    if (!codeRecord.targetUser || codeRecord.targetUser !== cleanUser) {
-      return {
-        success: false,
-        message: 'This verification code is not assigned to your account.',
-      };
-    }
-
-    const nowIso = new Date().toISOString();
-    const nextUsedCount = codeRecord.usedCount + 1;
-    const exhausted = nextUsedCount >= codeRecord.maxUses;
-
-    codes[codeIndex] = {
-      ...codeRecord,
-      usedCount: nextUsedCount,
-      used: exhausted,
-      usedBy: cleanUser,
-      usedAt: nowIso,
-      redeemedByUsers: [...codeRecord.redeemedByUsers, cleanUser],
-    };
-    localStore.saveCodes(codes);
-
-    users[userIndex] = {
-      ...users[userIndex],
-      passVerified: true,
-      verifiedAt: nowIso,
-      updatedAt: nowIso,
-    };
-    localStore.saveUsers(users);
-
-    localStore.appendLog({
-      actor: cleanUser,
-      action: 'PASS_VERIFIED',
-      target: cleanUser,
-      details: `User ${cleanUser} completed pass verification using assigned code.`,
-    });
-
-    return {
-      success: true,
-      passVerified: true,
-      message: `Verification successful! Your Silent Cheats pass is now verified for ${cleanUser}.`,
-    };
   },
 
-  // Load user configuration from localStore
+  // Load user configuration from Firestore
   async getUserConfig(username: string): Promise<UserConfig | null> {
-    const configs = localStore.getConfigs();
-    const cfg = configs[username];
-    return cfg ? (cfg as UserConfig) : null;
+    const path = `user_configs/${username}`;
+    try {
+      const snap = await getDoc(doc(db, 'user_configs', username));
+      return snap.exists() ? (snap.data() as UserConfig) : null;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
   },
 
-  // Save user configuration to localStore
+  // Save user configuration to Firestore
   async saveUserConfig(username: string, config: UserConfig): Promise<void> {
-    const configs = localStore.getConfigs();
-    configs[username] = {
-      ...config,
-      username,
-      updatedAt: new Date().toISOString(),
-    };
-    localStore.saveConfigs(configs);
+    const path = `user_configs/${username}`;
+    try {
+      await setDoc(
+        doc(db, 'user_configs', username),
+        {
+          ...config,
+          username,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
   },
 };
