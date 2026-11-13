@@ -21,7 +21,7 @@ import {
   X,
   Headphones
 } from 'lucide-react';
-import { AuthUser } from '../services/dbService';
+import { dbService, AuthUser } from '../services/dbService';
 
 interface DashboardViewProps {
   user: AuthUser;
@@ -58,52 +58,27 @@ export const DashboardView: FC<DashboardViewProps> = ({
   const isSpecialUser = requiresPassVerification;
   const isSpecialAccount = requiresPassVerification && !isPassVerified;
 
-  // Sync pass verification & account active status from backend on mount
+  // Sync pass verification & account active status from client-side store on mount
   useEffect(() => {
-    let active = true;
-    const headers: Record<string, string> = {};
-    if (user.token) {
-      headers.Authorization = `Bearer ${user.token}`;
+    const statusData = dbService.getPassStatus(user.username);
+    if (!statusData) return;
+
+    if (statusData.status === 'INACTIVE') {
+      onLogout();
+      return;
     }
 
-    fetch(`/api/pass-status?username=${encodeURIComponent(user.username)}`, {
-      headers,
-      credentials: 'include',
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then(
-        (
-          data: {
-            status?: string;
-            passVerificationRequired?: boolean;
-            passVerified?: boolean;
-          } | null
-        ) => {
-          if (!active || !data) return;
-          if (data.status === 'INACTIVE') {
-            onLogout();
-            return;
-          }
-          if (
-            data.passVerified !== user.passVerified ||
-            data.passVerificationRequired !== user.passVerificationRequired
-          ) {
-            onUserSync?.({
-              passVerified: data.passVerified,
-              passVerificationRequired: data.passVerificationRequired,
-              status: data.status,
-            });
-          }
-        }
-      )
-      .catch(() => {
-        // Keep current session state on transient network error
+    if (
+      statusData.passVerified !== user.passVerified ||
+      statusData.passVerificationRequired !== user.passVerificationRequired
+    ) {
+      onUserSync?.({
+        passVerified: statusData.passVerified,
+        passVerificationRequired: statusData.passVerificationRequired,
+        status: statusData.status,
       });
-
-    return () => {
-      active = false;
-    };
-  }, [user.username, user.token, user.passVerified, user.passVerificationRequired, onLogout, onUserSync]);
+    }
+  }, [user.username, user.passVerified, user.passVerificationRequired, onLogout, onUserSync]);
 
   const openVerifyModal = () => {
     setVerifyError(null);
@@ -143,48 +118,19 @@ export const DashboardView: FC<DashboardViewProps> = ({
     setVerifyError(null);
     setVerifySuccess(null);
 
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (user.token) {
-        headers.Authorization = `Bearer ${user.token}`;
-      }
+    await new Promise((res) => setTimeout(res, 250));
+    const result = await dbService.verifyPassCode(user.username, cleanCode);
 
-      const response = await fetch('/api/verify-pass', {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: JSON.stringify({
-          username: user.username,
-          code: cleanCode,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        success?: boolean;
-        passVerified?: boolean;
-        message?: string;
-      };
-
-      if (!response.ok || !data.success) {
-        setVerifyError(
-          data.message || 'Invalid verification code. Please contact Admin Support and try again.'
-        );
-        setIsVerifying(false);
-        return;
-      }
-
-      setVerifySuccess(
-        data.message || 'Verification successful! Your Silent Cheats pass is now verified.'
-      );
-      setVerificationCode('');
+    if (!result.success) {
+      setVerifyError(result.message);
       setIsVerifying(false);
-      onPassVerified?.();
-    } catch {
-      setVerifyError('Unable to reach verification server. Please check your connection and try again.');
-      setIsVerifying(false);
+      return;
     }
+
+    setVerifySuccess(result.message);
+    setVerificationCode('');
+    setIsVerifying(false);
+    onPassVerified?.();
   };
 
   // ALL FEATURES OFF BY DEFAULT ON EVERY FRESH LOGIN
