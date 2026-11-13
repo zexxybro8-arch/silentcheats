@@ -45,6 +45,22 @@
         "status": { "type": "string" }
       },
       "required": ["username", "timestamp"]
+    },
+    "verification_codes": {
+      "title": "Verification Codes",
+      "description": "Single-use pass verification code records tracked by SHA-256 hash",
+      "type": "object",
+      "properties": {
+        "codeHash": { "type": "string" },
+        "used": { "type": "boolean" },
+        "usedBy": { "type": "string" },
+        "usedAt": { "type": "string" },
+        "active": { "type": "boolean" },
+        "amount": { "type": "number" },
+        "targetUser": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["used", "active"]
     }
   },
   "rules": {
@@ -57,6 +73,10 @@
       "write": true
     },
     "session_logs": {
+      "read": true,
+      "write": true
+    },
+    "verification_codes": {
       "read": true,
       "write": true
     }
