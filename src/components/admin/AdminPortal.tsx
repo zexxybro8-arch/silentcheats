@@ -1,11 +1,12 @@
 import { useState, useEffect, FC } from 'react';
 import { Loader2 } from 'lucide-react';
-import { adminService } from '../../services/adminService';
+import { adminService, AdminSession } from '../../services/adminService';
 import { AdminLoginCard } from './AdminLoginCard';
+import { AdminPasswordChangeCard } from './AdminPasswordChangeCard';
 import { AdminDashboard } from './AdminDashboard';
 
 export const AdminPortal: FC = () => {
-  const [admin, setAdmin] = useState<{ username: string; role: string } | null>(null);
+  const [admin, setAdmin] = useState<AdminSession | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -46,6 +47,16 @@ export const AdminPortal: FC = () => {
 
   if (!admin) {
     return <AdminLoginCard onLoginSuccess={setAdmin} />;
+  }
+
+  if (admin.mustChangePassword) {
+    return (
+      <AdminPasswordChangeCard
+        admin={admin}
+        onPasswordChanged={setAdmin}
+        onCancelLogout={handleLogout}
+      />
+    );
   }
 
   return <AdminDashboard admin={admin} onLogout={handleLogout} />;

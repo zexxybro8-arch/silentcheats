@@ -4,9 +4,10 @@ import { dbService, AuthUser } from '../services/dbService';
 
 interface LoginCardProps {
   onLoginSuccess: (user: AuthUser) => void;
+  onLogoClick?: () => void;
 }
 
-export const LoginCard: FC<LoginCardProps> = ({ onLoginSuccess }) => {
+export const LoginCard: FC<LoginCardProps> = ({ onLoginSuccess, onLogoClick }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -79,7 +80,10 @@ export const LoginCard: FC<LoginCardProps> = ({ onLoginSuccess }) => {
 
         {/* 1. Perfect Circular Glassmorphic Logo Frame (80-100px, object-fit: cover, border-radius: 50%) */}
         <div className="flex justify-center mb-5">
-          <div className="relative group">
+          <div
+            onClick={onLogoClick}
+            className="relative group"
+          >
             {/* Subtle purple outer glow */}
             <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-purple-600/35 via-violet-500/25 to-fuchsia-600/35 blur-md group-hover:blur-lg group-hover:opacity-100 opacity-80 transition-all duration-500" />
             

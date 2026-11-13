@@ -2,8 +2,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, ensureFirestoreConnection } from './firebase.ts';
 import { hashPassword, hashVerificationCode, isScryptHash } from './crypto.ts';
 
-const DEFAULT_ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'SC-ADMIN').trim();
-const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'SilentAdmin@2026';
+const INITIAL_ADMIN_ID = (process.env.ADMIN_ID || process.env.ADMIN_USERNAME || 'ADMIN551').trim();
+const INITIAL_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ADMIN551';
 
 const INITIAL_SPECIAL_CODES: string[] = [
   'SC200PASS81',
@@ -19,31 +19,33 @@ async function runBootstrap(): Promise<void> {
   await ensureFirestoreConnection();
   const nowIso = new Date().toISOString();
 
-  // 1. Ensure default Admin account exists in Firestore with scrypt-hashed password
+  // 1. Ensure initial Admin account exists in Firestore with scrypt-hashed password
+  //    and mandatory first-login password change enabled.
   try {
-    const adminRef = doc(db, 'admins', DEFAULT_ADMIN_USERNAME);
+    const adminRef = doc(db, 'admins', INITIAL_ADMIN_ID);
     const adminSnap = await getDoc(adminRef);
     if (!adminSnap.exists()) {
       await setDoc(adminRef, {
-        username: DEFAULT_ADMIN_USERNAME,
-        passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD),
+        username: INITIAL_ADMIN_ID,
+        passwordHash: hashPassword(INITIAL_ADMIN_PASSWORD),
         role: 'admin',
         active: true,
+        mustChangePassword: true,
         createdAt: nowIso,
         updatedAt: nowIso,
       });
-    } else if (process.env.ADMIN_PASSWORD) {
-      // Keep env-configured admin password synced if explicitly provided
+    } else {
       const existing = adminSnap.data();
-      if (!isScryptHash(existing.passwordHash)) {
-        await setDoc(
-          adminRef,
-          {
-            passwordHash: hashPassword(process.env.ADMIN_PASSWORD),
-            updatedAt: nowIso,
-          },
-          { merge: true }
-        );
+      const updates: Record<string, unknown> = {};
+      if (typeof existing.passwordHash === 'string' && !isScryptHash(existing.passwordHash)) {
+        updates.passwordHash = hashPassword(existing.passwordHash);
+      }
+      if (existing.mustChangePassword === undefined) {
+        updates.mustChangePassword = false;
+      }
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = nowIso;
+        await setDoc(adminRef, updates, { merge: true });
       }
     }
   } catch (err) {

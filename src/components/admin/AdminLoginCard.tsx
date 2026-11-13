@@ -1,9 +1,9 @@
 import { useState, ChangeEvent, FormEvent, FC } from 'react';
 import { ShieldAlert, User, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
-import { adminService } from '../../services/adminService';
+import { adminService, AdminSession } from '../../services/adminService';
 
 interface AdminLoginCardProps {
-  onLoginSuccess: (admin: { username: string; role: string }) => void;
+  onLoginSuccess: (admin: AdminSession) => void;
 }
 
 export const AdminLoginCard: FC<AdminLoginCardProps> = ({ onLoginSuccess }) => {

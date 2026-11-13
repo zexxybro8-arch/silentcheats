@@ -28,6 +28,7 @@ import { ensureBootstrapped } from './bootstrap.ts';
 
 interface AuthenticatedRequest extends Request {
   adminUser?: string;
+  adminMustChangePassword?: boolean;
   authUser?: string;
 }
 
@@ -128,6 +129,7 @@ async function requireAdmin(
     }
 
     req.adminUser = payload.sub;
+    req.adminMustChangePassword = Boolean(adminSnap.data().mustChangePassword);
     next();
   } catch {
     res.status(500).json({
@@ -135,6 +137,22 @@ async function requireAdmin(
       message: 'Failed to verify admin session.',
     });
   }
+}
+
+function requirePasswordUpdated(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  if (req.adminMustChangePassword) {
+    res.status(403).json({
+      success: false,
+      code: 'PASSWORD_CHANGE_REQUIRED',
+      message: 'Initial password change is required before accessing the Admin Dashboard.',
+    });
+    return;
+  }
+  next();
 }
 
 function sanitizeUserRecord(id: string, data: Record<string, unknown>) {
@@ -539,11 +557,13 @@ export function createApiApp(): Express {
       const token = signSessionToken(username, 'admin', 60 * 60 * 12);
       setSessionCookie(res, 'sc_admin_token', token, 60 * 60 * 12);
 
+      const mustChangePassword = Boolean(adminData.mustChangePassword);
+
       await logAdminAction({
         actor: username,
         action: 'ADMIN_LOGIN',
         target: username,
-        details: `Admin ${username} authenticated into the Admin Control Panel.`,
+        details: `Admin ${username} authenticated into the Admin Control Panel${mustChangePassword ? ' (Password change required)' : ''}.`,
       });
 
       res.json({
@@ -551,6 +571,7 @@ export function createApiApp(): Express {
         admin: {
           username,
           role: 'admin',
+          mustChangePassword,
         },
         token,
       });
@@ -574,15 +595,114 @@ export function createApiApp(): Express {
       admin: {
         username: req.adminUser,
         role: 'admin',
+        mustChangePassword: Boolean(req.adminMustChangePassword),
       },
     });
   });
+
+  app.post(
+    '/api/admin/change-password',
+    requireAdmin,
+    async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const adminUsername = req.adminUser;
+        if (!adminUsername) {
+          res.status(401).json({ success: false, message: 'Unauthorized.' });
+          return;
+        }
+
+        const body = req.body as { currentPassword?: unknown; newPassword?: unknown };
+        const currentPassword =
+          typeof body?.currentPassword === 'string' ? body.currentPassword : '';
+        const newPassword = typeof body?.newPassword === 'string' ? body.newPassword : '';
+
+        if (!currentPassword || !newPassword) {
+          res.status(400).json({
+            success: false,
+            message: 'Current password and new password are required.',
+          });
+          return;
+        }
+
+        if (newPassword.length < 6 || newPassword.length > 128) {
+          res.status(400).json({
+            success: false,
+            message: 'New admin password must be between 6 and 128 characters.',
+          });
+          return;
+        }
+
+        if (newPassword === currentPassword) {
+          res.status(400).json({
+            success: false,
+            message: 'New password must be different from the current password.',
+          });
+          return;
+        }
+
+        const adminRef = doc(db, 'admins', adminUsername);
+        const adminSnap = await getDoc(adminRef);
+        if (!adminSnap.exists()) {
+          res.status(404).json({ success: false, message: 'Admin record not found.' });
+          return;
+        }
+
+        const adminData = adminSnap.data();
+        const storedHash = typeof adminData.passwordHash === 'string' ? adminData.passwordHash : '';
+        if (!verifyPassword(currentPassword, storedHash)) {
+          res.status(401).json({
+            success: false,
+            message: 'Current admin password is incorrect.',
+          });
+          return;
+        }
+
+        const nowIso = new Date().toISOString();
+        await setDoc(
+          adminRef,
+          {
+            passwordHash: hashPassword(newPassword),
+            mustChangePassword: false,
+            passwordChangedAt: nowIso,
+            updatedAt: nowIso,
+          },
+          { merge: true }
+        );
+
+        await logAdminAction({
+          actor: adminUsername,
+          action: 'ADMIN_PASSWORD_CHANGED',
+          target: adminUsername,
+          details: `Admin ${adminUsername} updated their account password.`,
+        });
+
+        res.json({
+          success: true,
+          admin: {
+            username: adminUsername,
+            role: 'admin',
+            mustChangePassword: false,
+          },
+        });
+      } catch (err) {
+        console.error('Admin password change error:', err);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to update admin password.',
+        });
+      }
+    }
+  );
 
   // ==========================================
   // ADMIN: USER MANAGEMENT
   // ==========================================
 
-  app.get('/api/admin/users', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  app.get(
+    '/api/admin/users',
+    requireAdmin,
+    requirePasswordUpdated,
+    async (_req: AuthenticatedRequest, res: Response) => {
     try {
       const snapshot = await getDocs(collection(db, 'users'));
       const users = snapshot.docs
@@ -600,7 +720,11 @@ export function createApiApp(): Express {
     }
   });
 
-  app.post('/api/admin/users', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  app.post(
+    '/api/admin/users',
+    requireAdmin,
+    requirePasswordUpdated,
+    async (req: AuthenticatedRequest, res: Response) => {
     try {
       const body = req.body as {
         username?: unknown;
@@ -683,6 +807,7 @@ export function createApiApp(): Express {
   app.patch(
     '/api/admin/users/:username',
     requireAdmin,
+    requirePasswordUpdated,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
         const rawParam = req.params.username;
@@ -827,6 +952,7 @@ export function createApiApp(): Express {
   app.delete(
     '/api/admin/users/:username',
     requireAdmin,
+    requirePasswordUpdated,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
         const rawParam = req.params.username;
@@ -864,7 +990,11 @@ export function createApiApp(): Express {
   // ADMIN: PASS VERIFICATION CODE MANAGEMENT
   // ==========================================
 
-  app.get('/api/admin/codes', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  app.get(
+    '/api/admin/codes',
+    requireAdmin,
+    requirePasswordUpdated,
+    async (_req: AuthenticatedRequest, res: Response) => {
     try {
       const snapshot = await getDocs(collection(db, 'verification_codes'));
       const now = Date.now();
@@ -924,7 +1054,11 @@ export function createApiApp(): Express {
     }
   });
 
-  app.post('/api/admin/codes', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  app.post(
+    '/api/admin/codes',
+    requireAdmin,
+    requirePasswordUpdated,
+    async (req: AuthenticatedRequest, res: Response) => {
     try {
       const body = req.body as {
         targetUser?: unknown;
@@ -1055,6 +1189,7 @@ export function createApiApp(): Express {
   app.patch(
     '/api/admin/codes/:codeId/revoke',
     requireAdmin,
+    requirePasswordUpdated,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
         const rawParam = req.params.codeId;
@@ -1097,6 +1232,7 @@ export function createApiApp(): Express {
   app.delete(
     '/api/admin/codes/:codeId',
     requireAdmin,
+    requirePasswordUpdated,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
         const rawParam = req.params.codeId;
@@ -1135,7 +1271,11 @@ export function createApiApp(): Express {
   // ADMIN: AUDIT LOGS
   // ==========================================
 
-  app.get('/api/admin/logs', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  app.get(
+    '/api/admin/logs',
+    requireAdmin,
+    requirePasswordUpdated,
+    async (_req: AuthenticatedRequest, res: Response) => {
     try {
       const logsQuery = query(
         collection(db, 'admin_logs'),

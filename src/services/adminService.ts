@@ -77,11 +77,18 @@ async function adminFetch<T>(url: string, options: RequestInit = {}): Promise<T>
 
   const data = (await response.json().catch(() => ({}))) as T & {
     success?: boolean;
+    code?: string;
     message?: string;
   };
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    const isPasswordEndpoint =
+      url.includes('/api/admin/login') || url.includes('/api/admin/change-password');
+    if (
+      !isPasswordEndpoint &&
+      data.code !== 'PASSWORD_CHANGE_REQUIRED' &&
+      (response.status === 401 || response.status === 403)
+    ) {
       setStoredAdminToken(null);
     }
     throw new Error(data.message || 'Admin request failed.');
@@ -90,18 +97,25 @@ async function adminFetch<T>(url: string, options: RequestInit = {}): Promise<T>
   return data;
 }
 
+export interface AdminSession {
+  username: string;
+  role: string;
+  mustChangePassword?: boolean;
+}
+
 export const adminService = {
+  hasStoredToken(): boolean {
+    return Boolean(getStoredAdminToken());
+  },
+
   clearLocalSession(): void {
     setStoredAdminToken(null);
   },
 
-  async login(
-    username: string,
-    password: string
-  ): Promise<{ username: string; role: string }> {
+  async login(username: string, password: string): Promise<AdminSession> {
     const data = await adminFetch<{
       success: boolean;
-      admin: { username: string; role: string };
+      admin: AdminSession;
       token?: string;
     }>('/api/admin/login', {
       method: 'POST',
@@ -114,6 +128,17 @@ export const adminService = {
     return data.admin;
   },
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<AdminSession> {
+    const data = await adminFetch<{
+      success: boolean;
+      admin: AdminSession;
+    }>('/api/admin/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return data.admin;
+  },
+
   async logout(): Promise<void> {
     try {
       await adminFetch('/api/admin/logout', { method: 'POST' });
@@ -122,11 +147,11 @@ export const adminService = {
     }
   },
 
-  async checkSession(): Promise<{ username: string; role: string } | null> {
+  async checkSession(): Promise<AdminSession | null> {
     try {
       const data = await adminFetch<{
         authenticated: boolean;
-        admin: { username: string; role: string };
+        admin: AdminSession;
       }>('/api/admin/me');
       return data.authenticated ? data.admin : null;
     } catch {
