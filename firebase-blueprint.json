@@ -1,18 +1,37 @@
 {
   "entities": {
-    "users": {
-      "title": "Users",
-      "description": "User accounts and access credentials",
+    "admins": {
+      "title": "Admins",
+      "description": "Administrator accounts with scrypt-hashed passwords and role metadata",
       "type": "object",
       "properties": {
         "username": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "role": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["username", "passwordHash", "role"]
+    },
+    "users": {
+      "title": "Users",
+      "description": "User accounts, scrypt password hashes, status, and pass verification flags",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "passwordHash": { "type": "string" },
         "tier": { "type": "string" },
         "status": { "type": "string" },
+        "passVerificationRequired": { "type": "boolean" },
+        "passVerified": { "type": "boolean" },
         "hwidMatched": { "type": "boolean" },
         "protocol": { "type": "string" },
-        "createdAt": { "type": "string" }
+        "verifiedAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
       },
-      "required": ["username", "tier"]
+      "required": ["username", "tier", "status"]
     },
     "user_configs": {
       "title": "User Configurations",
@@ -48,22 +67,45 @@
     },
     "verification_codes": {
       "title": "Verification Codes",
-      "description": "Single-use pass verification code records tracked by SHA-256 hash",
+      "description": "Pass verification code records assigned to users with usage limits and expiry",
       "type": "object",
       "properties": {
         "codeHash": { "type": "string" },
+        "codeLabel": { "type": "string" },
+        "targetUser": { "type": "string" },
         "used": { "type": "boolean" },
+        "usedCount": { "type": "number" },
+        "maxUses": { "type": "number" },
         "usedBy": { "type": "string" },
         "usedAt": { "type": "string" },
+        "expiresAt": { "type": "string" },
         "active": { "type": "boolean" },
         "amount": { "type": "number" },
-        "targetUser": { "type": "string" },
-        "createdAt": { "type": "string" }
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "revokedAt": { "type": "string" }
       },
-      "required": ["used", "active"]
+      "required": ["used", "active", "targetUser"]
+    },
+    "admin_logs": {
+      "title": "Admin Logs",
+      "description": "Audit trail of admin authentication, user management, and verification code actions",
+      "type": "object",
+      "properties": {
+        "actor": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["actor", "action", "timestamp"]
     }
   },
   "rules": {
+    "admins": {
+      "read": true,
+      "write": true
+    },
     "users": {
       "read": true,
       "write": true
@@ -77,6 +119,10 @@
       "write": true
     },
     "verification_codes": {
+      "read": true,
+      "write": true
+    },
+    "admin_logs": {
       "read": true,
       "write": true
     }

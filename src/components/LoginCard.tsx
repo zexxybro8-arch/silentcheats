@@ -55,7 +55,7 @@ export const LoginCard: FC<LoginCardProps> = ({ onLoginSuccess }) => {
 
     if (!result.success || !result.user) {
       setIsLoading(false);
-      setErrorMessage('Invalid username or password');
+      setErrorMessage(result.error || 'Invalid username or password');
       return;
     }
 

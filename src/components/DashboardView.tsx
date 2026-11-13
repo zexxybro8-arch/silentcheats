@@ -27,11 +27,17 @@ interface DashboardViewProps {
   user: AuthUser;
   onLogout: () => void;
   onPassVerified?: () => void;
+  onUserSync?: (patch: Partial<AuthUser>) => void;
 }
 
 type TabType = 'features' | 'esp' | 'config' | 'account';
 
-export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout, onPassVerified }) => {
+export const DashboardView: FC<DashboardViewProps> = ({
+  user,
+  onLogout,
+  onPassVerified,
+  onUserSync,
+}) => {
   const [activeTab, setActiveTab] = useState<TabType>('features');
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedMode, setSelectedMode] = useState('Stealth Mode (Recommended)');
@@ -44,22 +50,52 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout, onPassVe
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
 
-  const isSpecialUser = user.username === 'USER-81455';
+  const requiresPassVerification =
+    user.passVerificationRequired !== undefined
+      ? user.passVerificationRequired
+      : user.username === 'USER-81455' || user.passVerified === false;
   const isPassVerified = user.passVerified === true;
-  const isSpecialAccount = (isSpecialUser || user.passVerified === false) && !isPassVerified;
+  const isSpecialUser = requiresPassVerification;
+  const isSpecialAccount = requiresPassVerification && !isPassVerified;
 
-  // Sync pass verification status from backend on mount for unverified special accounts
+  // Sync pass verification & account active status from backend on mount
   useEffect(() => {
-    if (!isSpecialAccount) return;
     let active = true;
+    const headers: Record<string, string> = {};
+    if (user.token) {
+      headers.Authorization = `Bearer ${user.token}`;
+    }
 
-    fetch(`/api/pass-status?username=${encodeURIComponent(user.username)}`)
+    fetch(`/api/pass-status?username=${encodeURIComponent(user.username)}`, {
+      headers,
+      credentials: 'include',
+    })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { passVerified?: boolean } | null) => {
-        if (active && data?.passVerified === true) {
-          onPassVerified?.();
+      .then(
+        (
+          data: {
+            status?: string;
+            passVerificationRequired?: boolean;
+            passVerified?: boolean;
+          } | null
+        ) => {
+          if (!active || !data) return;
+          if (data.status === 'INACTIVE') {
+            onLogout();
+            return;
+          }
+          if (
+            data.passVerified !== user.passVerified ||
+            data.passVerificationRequired !== user.passVerificationRequired
+          ) {
+            onUserSync?.({
+              passVerified: data.passVerified,
+              passVerificationRequired: data.passVerificationRequired,
+              status: data.status,
+            });
+          }
         }
-      })
+      )
       .catch(() => {
         // Keep current session state on transient network error
       });
@@ -67,7 +103,7 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout, onPassVe
     return () => {
       active = false;
     };
-  }, [isSpecialAccount, user.username, onPassVerified]);
+  }, [user.username, user.token, user.passVerified, user.passVerificationRequired, onLogout, onUserSync]);
 
   const openVerifyModal = () => {
     setVerifyError(null);
@@ -108,11 +144,17 @@ export const DashboardView: FC<DashboardViewProps> = ({ user, onLogout, onPassVe
     setVerifySuccess(null);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (user.token) {
+        headers.Authorization = `Bearer ${user.token}`;
+      }
+
       const response = await fetch('/api/verify-pass', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
+        credentials: 'include',
         body: JSON.stringify({
           username: user.username,
           code: cleanCode,
